@@ -1,38 +1,53 @@
-#[derive(Debug)]
-struct Position {
-    x: u32,
-    y: u32,
-}
+use rand::Rng;
 
 #[derive(Debug)]
 enum Cell {
-    Alive(Position),
-    Dead(Position),
+    Alive,
+    Dead,
 }
 
 #[derive(Debug)]
-struct Game {
-    world: Vec<Cell>,
+struct World {
+    width: u32,
+    height: u32,
+    cells: Vec<Cell>,
 }
 
-impl Game {
-    pub fn new() -> Game {
+impl World {
+    pub fn new() -> World {
         let mut cells: Vec<Cell> = Vec::new();
-        cells.push(Cell::Alive(Position { x: 0, y: 0 }));
-        cells.push(Cell::Dead(Position { x: 0, y: 1 }));
+        let mut random_generator = rand::thread_rng();
 
-        Game {
-            world: cells,
+        for _n in 0..101 {
+            let random = random_generator.gen_range(0.0, 1.0);
+            if random > 0.5 {
+                cells.push(Cell::Alive);
+            } else {
+                cells.push(Cell::Dead);
+            }
+        }
+
+        World {
+            width: 10,
+            height: 10,
+            cells,
+        }
+    }
+
+    pub fn print(&self) {
+        for _row in 0..11 {
+            for column in 0..11 {
+                println!("{:?}", self.cells[column]);
+            }
+            println!("\n");
         }
     }
 }
 
 fn main() {
-    let mut game: Game = Game::new();
+    let mut world: World = World::new();
 
-    println!("World is {:?}", game);
+    world.cells.push(Cell::Dead);
 
-    game.world.push(Cell::Dead(Position { x: 0, y: 2 }));
-
-    println!("World is {:?}", game);
+    world.print();
 }
