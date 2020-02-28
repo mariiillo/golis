@@ -1,56 +1,49 @@
-use rand::Rng;
+use std::{fmt, thread, time};
 
-#[derive(Debug, Copy, Clone)]
 #[repr(u8)]
-enum Cell {
-    Alive = 1,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cell {
     Dead = 0,
+    Alive = 1,
 }
 
-#[derive(Debug)]
-struct World {
+pub struct Universe {
     width: u32,
     height: u32,
     cells: Vec<Cell>,
 }
 
-impl World {
-    pub fn new() -> World {
-        let mut cells: Vec<Cell> = Vec::new();
-        let mut random_generator = rand::thread_rng();
+impl Universe {
+    pub fn new() -> Universe {
+        let width = 50;
+        let height = 50;
 
-        for _n in 0..9 {
-            let random = random_generator.gen_range(0.0, 1.0);
-            if random > 0.5 {
-                cells.push(Cell::Alive);
-            } else {
-                cells.push(Cell::Dead);
-            }
-        }
+        let cells = (0..width * height)
+            .map(|i| {
+                if i % 2 == 0 || i % 7 == 0 {
+                    Cell::Alive
+                } else {
+                    Cell::Dead
+                }
+            })
+            .collect();
 
-        World {
-            width: 3,
-            height: 3,
+        Universe {
+            width,
+            height,
             cells,
         }
     }
 
-    pub fn print(&self) {
-        for row in 0..3 {
-            for column in 0..3 {
-                print!("{:?} ", self.cell_at(row, column) as u8);
-            }
-            println!("\n");
-        }
+    pub fn render(&self) -> String {
+        self.to_string()
     }
 
-    fn cell_at(&self, row: u32, column: u32) -> Cell {
-        let index = (row * self.width + column) as usize;
-
-        self.cells[index]
+    fn get_index(&self, row: u32, column: u32) -> usize {
+        (row * self.width + column) as usize
     }
 
-    fn cells_alive_around(&self, row: u32, column: u32) -> u8 {
+    fn live_neighbor_count(&self, row: u32, column: u32) -> u8 {
         let mut count = 0;
         for delta_row in [self.height - 1, 0, 1].iter().cloned() {
             for delta_col in [self.width - 1, 0, 1].iter().cloned() {
@@ -60,16 +53,60 @@ impl World {
 
                 let neighbor_row = (row + delta_row) % self.height;
                 let neighbor_col = (column + delta_col) % self.width;
-                let cell = self.cell_at(neighbor_row, neighbor_col);
-                count += cell as u8;
+                let idx = self.get_index(neighbor_row, neighbor_col);
+                count += self.cells[idx] as u8;
             }
         }
         count
     }
+
+    pub fn tick(&mut self) {
+        let mut next = self.cells.clone();
+
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let idx = self.get_index(row, col);
+                let cell = self.cells[idx];
+                let live_neighbors = self.live_neighbor_count(row, col);
+
+                let next_cell = match (cell, live_neighbors) {
+                    (Cell::Alive, x) if x < 2 => Cell::Dead,
+                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
+                    (Cell::Alive, x) if x > 3 => Cell::Dead,
+                    (Cell::Dead, 3) => Cell::Alive,
+                    (otherwise, _) => otherwise,
+                };
+                next[idx] = next_cell;
+            }
+        }
+
+        self.cells = next;
+    }
+}
+
+impl fmt::Display for Universe {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for line in self.cells.as_slice().chunks(self.width as usize) {
+            for &cell in line {
+                let symbol = if cell == Cell::Dead { '◻' } else { '◼' };
+                write!(f, "{}", symbol)?;
+            }
+            write!(f, "\n")?;
+        }
+
+        Ok(())
+    }
 }
 
 fn main() {
-    let world: World = World::new();
-    world.print();
-    println!("{}", world.cells_alive_around(2, 2));
+    let mut universe: Universe = Universe::new();
+
+    println!("{}", universe);
+
+    loop {
+        thread::sleep(time::Duration::from_millis(300));
+        print!("{}[2J", 27 as char);
+        universe.tick();
+        println!("{}", universe);
+    }
 }
